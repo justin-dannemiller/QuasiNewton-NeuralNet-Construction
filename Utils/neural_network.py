@@ -75,7 +75,7 @@ def forward_pass(X, W, n_feat, h):
   hidden_pre = X @ Y
   hidden_act = sigmoid(hidden_pre)
 
-  output_pre = hidden_act @ z
+  output_pre = (hidden_act @ z).unsqueeze(1)
   output_sig = sigmoid(output_pre)
 
   return hidden_act, output_pre, output_sig

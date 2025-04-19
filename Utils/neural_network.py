@@ -4,16 +4,14 @@
 ##              error/metric functions.                                      ##
 ###############################################################################
 
-import numpy as np
 import torch
-
 
 ###################### Weight packing/unpacking utilities #####################
 def unpack_weights(W, n_features, h):
     """Return (Y, z) where
        Y shape = (n_features, h),  z shape = (h,)"""
     Y = W[:n_features * h].reshape(n_features, h)
-    z = W[n_features * h : n_features * h + h]
+    z = W[n_features * h : n_features * h + h].reshape(h, 1)
     return Y, z
 
 def pack_weights(Y, z):
@@ -23,7 +21,7 @@ def pack_weights(Y, z):
 
 
 ################ Network Architecture Construction & Updates ##################
-def initialize_FC_neural_net(n_feats: int, n_hidden: int) -> np.ndarray:
+def initialize_FC_neural_net(n_feats: int, n_hidden: int) -> torch.Tensor:
     """
         Description: Initializes fully connected neural network for binary 
                      classification with n_feats input neurons and n_hidden
@@ -74,35 +72,39 @@ def forward_pass(X, W, n_feat, h):
   hidden_pre = X @ Y
   hidden_act = sigmoid(hidden_pre)
 
-  output_pre = (hidden_act @ z).unsqueeze(1)
+  output_pre = (hidden_act @ z)
   output_sig = sigmoid(output_pre)
 
-  return hidden_act, output_pre, output_sig
+  return hidden_act, hidden_pre, output_pre, output_sig
 
 
 def compute_grad(X, y, W, n_feat, h):
     Y, z = unpack_weights(W, n_feat, h)
     #m    = X.shape[0]
 
-    hidden_act, output_pre, y_hat = forward_pass(X, W, n_feat, h)
+    U, A, v, y_hat = forward_pass(X, W, n_feat, h)
     residual = y_hat - y
 
     # chain rule: dL/d(output_pre)  (outer sigmoid part)
-    dL_dv = 2.0 * residual * sigmoid_grad(output_pre)
+    dL_dv = 2.0 * residual * (y_hat * (1 - y_hat))
 
     # --- grads w.r.t z ---
-    grad_z = hidden_act.T @ dL_dv
+    grad_z = U.T @ dL_dv
 
     # --- grads w.r.t Y ---
-    factor  = dL_dv[:, None] * z[None, :] * sigmoid_grad(X @ Y)
-    grad_Y  = (X.T @ factor).sum(dim=0)
+    S = U * (1 - U)
+    # Broadcast: (m,1) * (1,h) * (m,h)  = (m,h)
+    F = dL_dv @ torch.ones(1, h, device=W.device)
+    F = F * z.T * S  
+    grad_Y = X.T @ F
+    
     return pack_weights(grad_Y, grad_z)
 ###############################################################################
 
 
 ########################## Error & Performance. ###############################
 def compute_error(X, y, W, n_feat, h):
-    _, _, y_hat = forward_pass(X, W, n_feat, h)
+    *_, y_hat = forward_pass(X, W, n_feat, h)
     return torch.sum((y_hat - y) ** 2)
 
 def compute_accuracy(y_hat, y, doobis_magical_threshold=0.5):

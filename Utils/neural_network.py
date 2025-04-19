@@ -105,8 +105,8 @@ def compute_error(X, y, W, n_feat, h):
     _, _, y_hat = forward_pass(X, W, n_feat, h)
     return torch.sum((y_hat - y) ** 2)
 
-def accuracy(y_hat, y, doobis_magical_threshold=0.5):
-    y_pred = (y_hat >= doobis_magical_threshold).astype(int)
-    acc = torch.mean(y_pred == y)
+def compute_accuracy(y_hat, y, doobis_magical_threshold=0.5):
+    y_pred = (y_hat >= doobis_magical_threshold).int()
+    acc = 100 * torch.mean((y_pred == y).float())
     return acc
 ###############################################################################

@@ -73,16 +73,16 @@ def perform_line_search(f, grad_f, W, d_k):
 		W_lamb_d = W + lambda_ * d_k
 		fw_lamb_d = f(W_lamb_d)
 		grad_fw_lamb_d = grad_f(W_lamb_d)
-    # 1st condition
-	if fw_lamb_d - fw > (1e-4) * lambda_ * grad_fw_d:
-		lambda_ *= 0.75
-    # 2nd condition
+		# 1st condition
+		if fw_lamb_d - fw > (1e-4) * lambda_ * grad_fw_d:
+			lambda_ *= 0.75
+		# 2nd condition
 
-	elif torch.dot(grad_fw_lamb_d, d_k) < 0.9 * grad_fw_d:
-		lambda_ *= 1.2
-    # have met wolfe conditions
-	else:
-		return lambda_
+		elif torch.dot(grad_fw_lamb_d, d_k) < 0.9 * grad_fw_d:
+			lambda_ *= 1.2
+		# have met wolfe conditions
+		else:
+			return lambda_
 
 	return lambda_
 

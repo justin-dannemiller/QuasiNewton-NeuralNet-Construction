@@ -40,16 +40,16 @@ def compute_BFGS_Hessian_update(Hessian_prev, grad_delta, weight_delta):
     """ Compute Inverse Hessian Approximate with BFGS method """
     s, y = weight_delta, grad_delta
     rho  = 1.0 / (y.T @ s)
-    I    = np.eye(len(Hessian_prev))
-    V    = I - rho * np.outer(s, y)
-    return V @ Hessian_prev @ V.T + rho * np.outer(s, s)
+    I    = torch.eye(len(Hessian_prev), dtype=Hessian_prev.dtype)
+    V    = I - rho * (s @ y.T)
+    return V @ Hessian_prev @ V.T + rho * (s @ s.T)
 
 def compute_SR1_Hessian_update(Hessian_prev, grad_delta, weight_delta):
     """ Compute Inverse Hessian Approximate with SR1 method """
     s, y = weight_delta, grad_delta
     Hy   = Hessian_prev @ y
     denom= (s - Hy).T @ y
-    return Hessian_prev + np.outer(s - Hy, s - Hy) / denom
+    return Hessian_prev + ((s - Hy) @ (s - Hy).T) / denom
 
 def update_inverse_hessian(H_prev, grad_delta, weight_delta, eps=1e-8):
     if should_use_BFGS_update(H_prev, grad_delta, weight_delta, eps):
@@ -135,7 +135,7 @@ def compute_minimizer(W_init: Tensor, X: Tensor, y_true: Tensor,
   for i in progress_bar:
     # Break if gradients are sufficiently small
     gradients = compute_grad(X, y_true, W, n_feats, n_hidden)
-    grad_norm = np.linalg.norm(gradients)
+    grad_norm = torch.norm(gradients).item()
     progress_bar.set_description(f"Iteration {i} | grad norm: {grad_norm:.2e}")
     if grad_threshold_reached(grad_norm, W, grad_tol):
       break

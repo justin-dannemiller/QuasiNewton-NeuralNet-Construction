@@ -18,7 +18,7 @@ def unpack_weights(W, n_features, h):
 
 def pack_weights(Y, z):
     """Flatten (Y, z) back to a 1‑D vector."""
-    return np.concatenate([Y.ravel(), z.ravel()])
+    return torch.cat([Y.flatten(), z.flatten()])
 ###############################################################################
 
 
@@ -44,13 +44,12 @@ def add_neuron_to_network(W, n_feats, n_output_neurons, n_hidden):
     """
         Description: Adds additional neuron to hidden layer
     """
-    random_init = (-1,1)
     y,z = unpack_weights(W, n_feats, n_hidden)
-    y_add = np.random.uniform(*random_init, size=(n_feats, 1)) # n is n-dim vector sample
-    z_add = np.random.uniform(*random_init, size=(1, n_output_neurons))
+    y_add = torch.empty(n_feats, 1).uniform_(-1, 1) # n is n-dim vector sample
+    z_add = torch.empty(1, n_output_neurons).uniform_(-1, 1)
 
-    y_new = np.concatenate([y, y_add], axis=1)
-    z_new = np.concatenate([z, z_add], axis=0)
+    y_new = torch.cat([y, y_add], dim=1)
+    z_new = torch.cat([z, z_add], dim=0)
 
     W_new = pack_weights(y_new, z_new)
     n_hidden += 1
@@ -62,7 +61,7 @@ def add_neuron_to_network(W, n_feats, n_output_neurons, n_hidden):
 
 ######################## Forward & backward prop. #############################
 def sigmoid(z):
-  return 1 / (1 + np.exp(-z))
+  return 1 / (1 + torch.exp(-z))
 
 def sigmoid_grad(z):
   sigmoid_z = sigmoid(z)
@@ -104,10 +103,10 @@ def compute_grad(X, y, W, n_feat, h):
 ########################## Error & Performance. ###############################
 def compute_error(X, y, W, n_feat, h):
     _, _, y_hat = forward_pass(X, W, n_feat, h)
-    return np.sum((y_hat - y) ** 2)
+    return torch.sum((y_hat - y) ** 2)
 
 def accuracy(y_hat, y, doobis_magical_threshold=0.5):
     y_pred = (y_hat >= doobis_magical_threshold).astype(int)
-    acc = np.mean(y_pred == y)
+    acc = torch.mean(y_pred == y)
     return acc
 ###############################################################################

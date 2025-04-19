@@ -62,33 +62,30 @@ def update_inverse_hessian(H_prev, grad_delta, weight_delta, eps=1e-8):
 
 
 ################# Lr Update and Weight Update & Minimization ##################
-def perform_line_search(W, h, x, search_dir):
-    """ May need to be adjusted """
-    lambda_ = 1.0
-    max_iter = 30
+def perform_line_search(f, grad_f, W, d_k):
+  lambda_ = 1.0
+  max_iter = 30
+  fw = f(W)
+  grad_fw = grad_f(W)
+  grad_fw_d = np.dot(grad_fw, d_k)
 
-    for i in range(max_iter):
-        W_lamb_d = W + lambda_ * search_dir # broadcast sum across W
-        y_lamb, z_lamb = unpack_weights(W_lamb_d, x.shape[0], h)
-        y, z = unpack_weights(W, x.shape[0], h)
-        fw_lamb_d = compute_error(x, y_lamb, z_lamb)
-        fw = compute_error(x, y, z)
-        grad_fw_lamb = compute_grad(x, y_lamb, z_lamb)
-        grad_fw = compute_grad(x, y, z)
+  for i in range(max_iter):
+    W_lamb_d = W + lambda_ * d_k
+    fw_lamb_d = f(W_lamb_d)
+    grad_fw_lamb_d = grad_f(W_lamb_d)
 
     # 1st condition
-    if fw_lamb_d - fw > (1e-4) * lambda_ * np.dot(grad_fw, search_dir):
-        lambda_ *= 0.75
-
+    if fw_lamb_d - fw > (1e-4) * lambda_ * grad_fw_d:
+      lambda_ *= 0.75
     # 2nd condition
-    elif np.dot(grad_fw_lamb, search_dir) < 0.9 * np.dot(grad_fw, search_dir):
-        lambda_ *= 1.2
-
+    elif np.dot(grad_fw_lamb_d, d_k) < 0.9 * grad_fw_d:
+      lambda_ *= 1.2
     # have met wolfe conditions
     else:
-        return lambda_
+      return lambda_
 
-    return lambda_
+  return lambda_
+
 
 def update_weights(X, y_true, W, H_inv, n_feat, h):
     f       = lambda w: compute_error(X, y_true, w, n_feat, h)

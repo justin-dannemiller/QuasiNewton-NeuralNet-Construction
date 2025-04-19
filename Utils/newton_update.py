@@ -63,28 +63,28 @@ def update_inverse_hessian(H_prev, grad_delta, weight_delta, eps=1e-8):
 
 ################# Lr Update and Weight Update & Minimization ##################
 def perform_line_search(f, grad_f, W, d_k):
-  lambda_ = 1.0
-  max_iter = 30
-  fw = f(W)
-  grad_fw = grad_f(W)
-  grad_fw_d = np.dot(grad_fw, d_k)
+	lambda_ = 1.0
+	max_iter = 30
+	fw = f(W)
+	grad_fw = grad_f(W)
+	grad_fw_d = torch.dot(grad_fw, d_k)
 
-  for i in range(max_iter):
-    W_lamb_d = W + lambda_ * d_k
-    fw_lamb_d = f(W_lamb_d)
-    grad_fw_lamb_d = grad_f(W_lamb_d)
-
+	for i in range(max_iter):
+		W_lamb_d = W + lambda_ * d_k
+		fw_lamb_d = f(W_lamb_d)
+		grad_fw_lamb_d = grad_f(W_lamb_d)
     # 1st condition
-    if fw_lamb_d - fw > (1e-4) * lambda_ * grad_fw_d:
-      lambda_ *= 0.75
+	if fw_lamb_d - fw > (1e-4) * lambda_ * grad_fw_d:
+		lambda_ *= 0.75
     # 2nd condition
-    elif np.dot(grad_fw_lamb_d, d_k) < 0.9 * grad_fw_d:
-      lambda_ *= 1.2
-    # have met wolfe conditions
-    else:
-      return lambda_
 
-  return lambda_
+	elif torch.dot(grad_fw_lamb_d, d_k) < 0.9 * grad_fw_d:
+		lambda_ *= 1.2
+    # have met wolfe conditions
+	else:
+		return lambda_
+
+	return lambda_
 
 
 def update_weights(X, y_true, W, H_inv, n_feat, h):

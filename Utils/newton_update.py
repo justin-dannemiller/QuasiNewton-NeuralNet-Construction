@@ -3,7 +3,6 @@
 ##              the BFGS/SR1 update algorithm discussed in the oringal paper ##                                     
 ###############################################################################
 
-import numpy as np
 import torch
 from torch import Tensor
 from Utils.neural_network import unpack_weights, compute_error, compute_grad
@@ -33,23 +32,27 @@ def compute_weight_delta(W_prev, W_current):
 def should_use_BFGS_update(H_inv, grad_delta, weight_delta, eps=1e-8) -> bool:
     """ True if use BFGS; False otherwise"""
     Hy = H_inv @ grad_delta
-    denom = (weight_delta - Hy).T @ grad_delta
-    return denom <= eps
+    denom = torch.dot(weight_delta - Hy, grad_delta)
+    return denom.item() <= eps
 
 def compute_BFGS_Hessian_update(Hessian_prev, grad_delta, weight_delta):
     """ Compute Inverse Hessian Approximate with BFGS method """
+    _outer = lambda a, b: a.unsqueeze(1) @ b.unsqueeze(0)   # (p,1)(1,p)->(p,p)
     s, y = weight_delta, grad_delta
     rho  = 1.0 / (y.T @ s)
     I    = torch.eye(len(Hessian_prev), dtype=Hessian_prev.dtype)
-    V    = I - rho * (s @ y.T)
-    return V @ Hessian_prev @ V.T + rho * (s @ s.T)
+    V    = I - rho * _outer(s, y)
+    return V @ Hessian_prev @ V.T + rho * _outer(s, s)
 
 def compute_SR1_Hessian_update(Hessian_prev, grad_delta, weight_delta):
     """ Compute Inverse Hessian Approximate with SR1 method """
+    _outer = lambda a, b: a.unsqueeze(1) @ b.unsqueeze(0)   # (p,1)(1,p)->(p,p)
     s, y = weight_delta, grad_delta
     Hy   = Hessian_prev @ y
-    denom= (s - Hy).T @ y
-    return Hessian_prev + ((s - Hy) @ (s - Hy).T) / denom
+    diff = s - Hy
+    denom= diff.T @ y
+    
+    return Hessian_prev + _outer(diff, diff) / denom
 
 def update_inverse_hessian(H_prev, grad_delta, weight_delta, eps=1e-8):
     if should_use_BFGS_update(H_prev, grad_delta, weight_delta, eps):

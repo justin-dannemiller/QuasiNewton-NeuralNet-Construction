@@ -96,8 +96,7 @@ def compute_grad(X, y, W, n_feat, h):
 
     # --- grads w.r.t Y ---
     factor  = dL_dv[:, None] * z[None, :] * sigmoid_grad(X @ Y)
-    grad_Y  = X.T @ factor
-
+    grad_Y  = (X.T @ factor).sum(dim=0)
     return pack_weights(grad_Y, grad_z)
 ###############################################################################
 

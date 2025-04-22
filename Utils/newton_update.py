@@ -36,11 +36,17 @@ def should_use_BFGS_update(H_inv, grad_delta, weight_delta, eps=1e-8) -> bool:
     denom = torch.dot(weight_delta - Hy, grad_delta)
     return denom.item() <= eps
 
-def compute_BFGS_Hessian_update(Hessian_prev, grad_delta, weight_delta, device):
+def compute_BFGS_Hessian_update(Hessian_prev, grad_delta, weight_delta, device,
+                                stop_threshold = 1e-12):
     """ Compute Inverse Hessian Approximate with BFGS method """
     _outer = lambda a, b: a.unsqueeze(1) @ b.unsqueeze(0)   # (p,1)(1,p)->(p,p)
     s, y = weight_delta, grad_delta
-    rho  = 1.0 / (y.T @ s)
+    # To prevent  gradient from going to NaN, stop updating the Hessian when the 
+    # denominator used in its calculation becomes smaller than the threshold
+    denominator = y.T @ s
+    if denominator.abs() < stop_threshold:
+        return Hessian_prev
+    rho = 1.0 / denominator
     I    = torch.eye(len(Hessian_prev), dtype=Hessian_prev.dtype, device = device)
     V    = I - rho * _outer(s, y)
     return V @ Hessian_prev @ V.T + rho * _outer(s, s)

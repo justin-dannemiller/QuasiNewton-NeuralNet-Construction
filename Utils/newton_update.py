@@ -5,6 +5,7 @@
 
 import torch
 from torch import Tensor
+from torch import device as torch_device
 from Utils.neural_network import unpack_weights, compute_error, compute_grad
 from tqdm import trange
 
@@ -35,12 +36,12 @@ def should_use_BFGS_update(H_inv, grad_delta, weight_delta, eps=1e-8) -> bool:
     denom = torch.dot(weight_delta - Hy, grad_delta)
     return denom.item() <= eps
 
-def compute_BFGS_Hessian_update(Hessian_prev, grad_delta, weight_delta):
+def compute_BFGS_Hessian_update(Hessian_prev, grad_delta, weight_delta, device):
     """ Compute Inverse Hessian Approximate with BFGS method """
     _outer = lambda a, b: a.unsqueeze(1) @ b.unsqueeze(0)   # (p,1)(1,p)->(p,p)
     s, y = weight_delta, grad_delta
     rho  = 1.0 / (y.T @ s)
-    I    = torch.eye(len(Hessian_prev), dtype=Hessian_prev.dtype)
+    I    = torch.eye(len(Hessian_prev), dtype=Hessian_prev.dtype, device = device)
     V    = I - rho * _outer(s, y)
     return V @ Hessian_prev @ V.T + rho * _outer(s, s)
 
@@ -54,9 +55,9 @@ def compute_SR1_Hessian_update(Hessian_prev, grad_delta, weight_delta):
     
     return Hessian_prev + _outer(diff, diff) / denom
 
-def update_inverse_hessian(H_prev, grad_delta, weight_delta, eps=1e-8):
+def update_inverse_hessian(H_prev, grad_delta, weight_delta, device, eps=1e-8):
     if should_use_BFGS_update(H_prev, grad_delta, weight_delta, eps):
-        return compute_BFGS_Hessian_update(H_prev, grad_delta, weight_delta)
+        return compute_BFGS_Hessian_update(H_prev, grad_delta, weight_delta, device)
     return compute_SR1_Hessian_update(H_prev, grad_delta, weight_delta)
 ###############################################################################
 
@@ -111,7 +112,7 @@ def grad_threshold_reached(grad_norm: float, W: Tensor, grad_tol: float) -> bool
         return False
     
 def compute_minimizer(W_init: Tensor, X: Tensor, y_true: Tensor,
-                      n_hidden: int, max_iters: int = 1000,
+                      n_hidden: int, device: torch_device, max_iters: int = 1000,
                       grad_tol: float = 1e-6) -> Tensor:
   """ 
     Description: Computes the approximate minimizer W* for the given
@@ -120,6 +121,8 @@ def compute_minimizer(W_init: Tensor, X: Tensor, y_true: Tensor,
     Args:
       W_init (Tensor): Initial weights of Neural Network
       n_hidden (int): Number of units in hidden layer
+      device (torch_device): Device on which to perform the 
+                             computation/minimization
       max_iters (int): Maximum number of iterations to run
       grad_tol (float): fraction of the gradient indicating when to
                         stop minimization
@@ -128,7 +131,7 @@ def compute_minimizer(W_init: Tensor, X: Tensor, y_true: Tensor,
   """
   # Initialize weights and inverse Hessian
   W = W_init
-  H_inv = torch.eye(W.shape[0]) # Intialize inverse hessian as Identity matrix 
+  H_inv = torch.eye(W.shape[0], device=device) # Intialize inverse hessian as Identity matrix 
                              # (satisfying PSD condition)
   n_feats = X.shape[1]
   progress_bar = trange(max_iters, desc="Optimizing", leave=True)
@@ -146,7 +149,7 @@ def compute_minimizer(W_init: Tensor, X: Tensor, y_true: Tensor,
       grad_delta = compute_gradient_delta(X, y_true, W_prev=W, W_current=W_new,
                                           n_feat = n_feats, h=n_hidden)
       weight_delta = compute_weight_delta(W_prev=W, W_current=W_new)
-      H_inv = update_inverse_hessian(H_inv, grad_delta, weight_delta)
+      H_inv = update_inverse_hessian(H_inv, grad_delta, weight_delta, device)
       W = W_new
 
   W_optimal = W

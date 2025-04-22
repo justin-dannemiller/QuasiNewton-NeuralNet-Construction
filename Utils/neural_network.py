@@ -21,7 +21,7 @@ def pack_weights(Y, z):
 
 
 ################ Network Architecture Construction & Updates ##################
-def initialize_FC_neural_net(n_feats: int, n_hidden: int) -> torch.Tensor:
+def initialize_FC_neural_net(n_feats: int, n_hidden: int, device) -> torch.Tensor:
     """
         Description: Initializes fully connected neural network for binary 
                      classification with n_feats input neurons and n_hidden
@@ -33,18 +33,18 @@ def initialize_FC_neural_net(n_feats: int, n_hidden: int) -> torch.Tensor:
         Returns
             W_init (np.ndarray): Array containing all initialized weights
     """
-    y_init = torch.empty(n_feats, n_hidden).uniform_(-1, 1) # input-hidden weights
-    z_init = torch.empty(n_hidden, 1).uniform_(-1, 1) # hidden-output weights
+    y_init = torch.empty((n_feats, n_hidden), device=device).uniform_(-1, 1) # input-hidden weights
+    z_init = torch.empty((n_hidden, 1), device=device).uniform_(-1, 1) # hidden-output weights
     W_init = torch.cat([y_init.flatten(), z_init.flatten()])
     return W_init
 
-def add_neuron_to_network(W, n_feats, n_output_neurons, n_hidden):
+def add_neuron_to_network(W, n_feats, n_output_neurons, n_hidden, device):
     """
         Description: Adds additional neuron to hidden layer
     """
     y,z = unpack_weights(W, n_feats, n_hidden)
-    y_add = torch.empty(n_feats, 1).uniform_(-1, 1) # n is n-dim vector sample
-    z_add = torch.empty(1, n_output_neurons).uniform_(-1, 1)
+    y_add = torch.empty((n_feats, 1), device=device).uniform_(-1, 1) # n is n-dim vector sample
+    z_add = torch.empty((1, n_output_neurons), device = device).uniform_(-1, 1)
 
     y_new = torch.cat([y, y_add], dim=1)
     z_new = torch.cat([z, z_add], dim=0)

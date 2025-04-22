@@ -44,7 +44,8 @@ def add_neuron_to_network(W, n_feats, n_output_neurons, n_hidden, device):
     """
     y,z = unpack_weights(W, n_feats, n_hidden)
     y_add = torch.empty((n_feats, 1), device=device).uniform_(-1, 1) # n is n-dim vector sample
-    z_add = torch.empty((1, n_output_neurons), device = device).uniform_(-1, 1)
+    # z_add = torch.empty((1, n_output_neurons), device = device).uniform_(-1, 1)
+    z_add = torch.zeros((1, n_output_neurons), device = device)
 
     y_new = torch.cat([y, y_add], dim=1)
     z_new = torch.cat([z, z_add], dim=0)

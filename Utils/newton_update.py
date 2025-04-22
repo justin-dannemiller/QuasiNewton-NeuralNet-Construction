@@ -119,45 +119,54 @@ def grad_threshold_reached(grad_norm: float, W: Tensor, grad_tol: float) -> bool
     
 def compute_minimizer(W_init: Tensor, X: Tensor, y_true: Tensor,
                       n_hidden: int, device: torch_device, max_iters: int = 1000,
-                      grad_tol: float = 1e-6) -> Tensor:
-  """ 
-    Description: Computes the approximate minimizer W* for the given
-                 neural network on the given problem using the
-                 quasi-Newton method with SR1/BFGS update algorithm
-    Args:
-      W_init (Tensor): Initial weights of Neural Network
-      n_hidden (int): Number of units in hidden layer
-      device (torch_device): Device on which to perform the 
-                             computation/minimization
-      max_iters (int): Maximum number of iterations to run
-      grad_tol (float): fraction of the gradient indicating when to
-                        stop minimization
-    Returns
-      W_optimal (Tensor): Optimzed set of weights for given Neural Network
-  """
-  # Initialize weights and inverse Hessian
-  W = W_init
-  H_inv = torch.eye(W.shape[0], device=device) # Intialize inverse hessian as Identity matrix 
-                             # (satisfying PSD condition)
-  n_feats = X.shape[1]
-  progress_bar = trange(max_iters, desc="Optimizing", leave=True)
-  for i in progress_bar:
-    # Break if gradients are sufficiently small
-    gradients = compute_grad(X, y_true, W, n_feats, n_hidden)
-    grad_norm = torch.norm(gradients).item()
-    progress_bar.set_description(f"Iteration {i} | grad norm: {grad_norm:.2e}")
-    if grad_threshold_reached(grad_norm, W, grad_tol):
-      break
-    else:
-      # Otherwise continue updating weights and inverse hessian
-      W_new = update_weights(X, y_true, W, H_inv, n_feats, n_hidden)
+                      grad_tol: float = 1e-8) -> Tensor:
+    """ 
+        Description: Computes the approximate minimizer W* for the given
+                        neural network on the given problem using the
+                        quasi-Newton method with SR1/BFGS update algorithm
+        Args:
+            W_init (Tensor): Initial weights of Neural Network
+            n_hidden (int): Number of units in hidden layer
+            device (torch_device): Device on which to perform the 
+                                    computation/minimization
+            max_iters (int): Maximum number of iterations to run
+            grad_tol (float): fraction of the gradient indicating when to
+                            stop minimization
+        Returns
+            W_optimal (Tensor): Optimzed set of weights for given Neural Network
+    """
+    # Initialize weights and inverse Hessian
+    W = W_init
+    H_inv = torch.eye(W.shape[0], device=device) # Intialize inverse hessian as Identity matrix 
+                                # (satisfying PSD condition)
+    n_feats = X.shape[1]
 
-      grad_delta = compute_gradient_delta(X, y_true, W_prev=W, W_current=W_new,
-                                          n_feat = n_feats, h=n_hidden)
-      weight_delta = compute_weight_delta(W_prev=W, W_current=W_new)
-      H_inv = update_inverse_hessian(H_inv, grad_delta, weight_delta, device)
-      W = W_new
+    # Track the weights with lowest error
+    loss_fn       = lambda w: compute_error(X, y_true, w, n_feats, n_hidden)
+    best_loss = torch.inf
+    W_best = W.clone()
+    progress_bar = trange(max_iters, desc="Optimizing", leave=True)
+    for i in progress_bar:
+        current_loss = loss_fn(W).item()
+        if current_loss < best_loss:
+             best_loss = current_loss
+             W_best = W.clone()
+        # Break if gradients are sufficiently small
+        gradients = compute_grad(X, y_true, W, n_feats, n_hidden)
+        grad_norm = torch.norm(gradients).item()
+        progress_bar.set_description(f"Iteration {i} | grad norm: {grad_norm:.2e}")
+        if grad_threshold_reached(grad_norm, W, grad_tol):
+            break
+        else:
+            # Otherwise continue updating weights and inverse hessian
+            W_new = update_weights(X, y_true, W, H_inv, n_feats, n_hidden)
 
-  W_optimal = W
-  return W_optimal
+            grad_delta = compute_gradient_delta(X, y_true, W_prev=W, W_current=W_new,
+                                                n_feat = n_feats, h=n_hidden)
+            weight_delta = compute_weight_delta(W_prev=W, W_current=W_new)
+            H_inv = update_inverse_hessian(H_inv, grad_delta, weight_delta, device)
+            W = W_new
+
+    W_optimal = W_best
+    return W_optimal
 ###############################################################################

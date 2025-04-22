@@ -8,6 +8,7 @@ from torch import Tensor
 from torch import device as torch_device
 from Utils.neural_network import unpack_weights, compute_error, compute_grad
 from tqdm import trange
+from typing import Tuple, List
 
 
 ############################# Computing Deltas ################################
@@ -119,7 +120,7 @@ def grad_threshold_reached(grad_norm: float, W: Tensor, grad_tol: float) -> bool
     
 def compute_minimizer(W_init: Tensor, X: Tensor, y_true: Tensor,
                       n_hidden: int, device: torch_device, max_iters: int = 1000,
-                      grad_tol: float = 1e-8) -> Tensor:
+                      grad_tol: float = 1e-8) -> Tuple[Tensor, List]:
     """ 
         Description: Computes the approximate minimizer W* for the given
                         neural network on the given problem using the
@@ -134,6 +135,7 @@ def compute_minimizer(W_init: Tensor, X: Tensor, y_true: Tensor,
                             stop minimization
         Returns
             W_optimal (Tensor): Optimzed set of weights for given Neural Network
+            training_losses (list): List of training losses/errors during training
     """
     # Initialize weights and inverse Hessian
     W = W_init
@@ -143,11 +145,13 @@ def compute_minimizer(W_init: Tensor, X: Tensor, y_true: Tensor,
 
     # Track the weights with lowest error
     loss_fn       = lambda w: compute_error(X, y_true, w, n_feats, n_hidden)
+    training_losses = []
     best_loss = torch.inf
     W_best = W.clone()
     progress_bar = trange(max_iters, desc="Optimizing", leave=True)
     for i in progress_bar:
         current_loss = loss_fn(W).item()
+        training_losses.append(current_loss)
         if current_loss < best_loss:
              best_loss = current_loss
              W_best = W.clone()
@@ -168,5 +172,5 @@ def compute_minimizer(W_init: Tensor, X: Tensor, y_true: Tensor,
             W = W_new
 
     W_optimal = W_best
-    return W_optimal
+    return W_optimal, training_losses
 ###############################################################################
